@@ -1,6 +1,9 @@
 package net.uselesscode.sapporo_subway_timetable;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -18,6 +21,10 @@ import net.uselesscode.sapporo_subway_timetable.entity.Route;
 import net.uselesscode.sapporo_subway_timetable.entity.TargetURL;
 
 public class Application {
+
+	private static final int OUTPUT_TYPE_FULL = 1;
+
+	private static final int OUTPUT_TYPE_CD = 2;
 
 	public static void main(String[] args) throws IOException {
 
@@ -38,19 +45,21 @@ public class Application {
 			String hour = null;
 			String[] minutesList;
 			for (Element element : elements) {
-				if ("h2".equals(element.tagName())) {
-					direction = element.text();
+				String text = element.text().trim().replaceAll("[\\xc2\\xa0]", "");
+				String tagName = element.tagName().trim();
+
+				if ("h2".equals(tagName)) {
+					direction = text;
 					System.out.println("進行方向:" + direction);
-				} else if ("h3".equals(element.tagName())) {
-					dateType = element.text();
+				} else if ("h3".equals(tagName)) {
+					dateType = text;
 					System.out.println("日区分:" + dateType);
-				} else if ("th".equals(element.tagName())) {
-					hour = element.text();
+				} else if ("th".equals(tagName)) {
+					hour = text;
 					System.out.println("時:" + hour);
-				} else if ("p".equals(element.tagName())) {
-					minutesList = element.text().split(" ");
-					System.out.println("分:" + element.text());
-					hour = null;
+				} else if ("p".equals(tagName)) {
+					minutesList = text.split(" ");
+					System.out.println("分:" + text);
 
 					for (String minutes : minutesList) {
 						Map<String, String> rowMap = new HashMap<String, String>();
@@ -58,10 +67,23 @@ public class Application {
 						rowMap.put(ColumnConst.ROUTE_NAME, route.getRouteName());
 						rowMap.put(ColumnConst.STATION_ID, createStationId(route.getRouteId(), target.getUrlId()));
 						rowMap.put(ColumnConst.STATION_NAME, station);
+						rowMap.put(ColumnConst.DIRECTION_ID, TargetConst.DIRECTION_MAP.get(direction));
+						rowMap.put(ColumnConst.DIRECTION_NAME, direction);
+						rowMap.put(ColumnConst.DATE_TYPE_CD, TargetConst.DATE_TYPE_MAP.get(dateType));
+						rowMap.put(ColumnConst.DATE_TYPE_NAME, dateType);
+						rowMap.put(ColumnConst.HOURS, hour);
+						rowMap.put(ColumnConst.MINUTES, minutes);
+
+						timetable.add(rowMap);
 					}
+
+					hour = null;
 				}
 			}
+
 		}
+		outputCSV(timetable, OUTPUT_TYPE_FULL);
+		outputCSV(timetable, OUTPUT_TYPE_CD);
 	}
 
 	/**
@@ -89,8 +111,67 @@ public class Application {
 	 */
 	public static String createStationId(String routeId, String urlId) {
 		Integer routeIdInt = Integer.parseInt(routeId) * 100;
-		Integer stationIdInt = Integer.parseInt(urlId.substring(1, 2));
+		Integer stationIdInt = Integer.parseInt(urlId.substring(1));
 		String stationId = Integer.toString(routeIdInt + stationIdInt);
 		return stationId;
+	}
+
+	/**
+	 * CSVファイルを吐き出す
+	 *
+	 * @param timetable
+	 * @param outputType
+	 */
+	public static void outputCSV(List<Map<String, String>> timetable, int outputType) {
+		System.out.println("ファイル出力開始");
+		FileWriter fileWriter;
+		try {
+			String fileName = "";
+			if (outputType == OUTPUT_TYPE_FULL) {
+				fileName = "timetable-full";
+			} else if (outputType == OUTPUT_TYPE_CD) {
+				fileName = "timetable";
+			}
+			fileWriter = new FileWriter("./out/" + fileName + ".csv", false);
+			PrintWriter printWriter = new PrintWriter(new BufferedWriter(fileWriter));
+
+			// ヘッダー部出力
+			if (outputType == OUTPUT_TYPE_FULL) {
+				printWriter.print("路線ID,路線名,駅ID,駅名,方面ID,方面名,日区分,日区分名,時,分");
+			} else if (outputType == OUTPUT_TYPE_CD) {
+				printWriter.print("路線ID,駅ID,方面ID,日区分,時,分");
+			}
+
+			for (Map<String, String> map : timetable) {
+				printWriter.println();
+				printWriter.print(map.get(ColumnConst.ROUTE_ID) + ",");
+				if (outputType == OUTPUT_TYPE_FULL) {
+					printWriter.print(map.get(ColumnConst.ROUTE_NAME) + ",");
+				}
+
+				printWriter.print(map.get(ColumnConst.STATION_ID) + ",");
+				if (outputType == OUTPUT_TYPE_FULL) {
+					printWriter.print(map.get(ColumnConst.STATION_NAME) + ",");
+				}
+
+				printWriter.print(map.get(ColumnConst.DIRECTION_ID) + ",");
+				if (outputType == OUTPUT_TYPE_FULL) {
+					printWriter.print(map.get(ColumnConst.DIRECTION_NAME) + ",");
+				}
+				printWriter.print(map.get(ColumnConst.DATE_TYPE_CD) + ",");
+				if (outputType == OUTPUT_TYPE_FULL) {
+					printWriter.print(map.get(ColumnConst.DATE_TYPE_NAME) + ",");
+				}
+				printWriter.print(map.get(ColumnConst.HOURS) + ",");
+				printWriter.print(map.get(ColumnConst.MINUTES));
+			}
+
+			printWriter.close();
+			System.out.println("ファイル出力完了");
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 }

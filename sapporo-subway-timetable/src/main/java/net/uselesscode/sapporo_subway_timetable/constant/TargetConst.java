@@ -1,8 +1,10 @@
 package net.uselesscode.sapporo_subway_timetable.constant;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import net.uselesscode.sapporo_subway_timetable.entity.TargetURL;
 
@@ -64,6 +66,25 @@ public class TargetConst {
 			add(new TargetURL("h13", "月寒中央"));
 			add(new TargetURL("h14", "福住"));
 
+		}
+	});
+
+	public static final Map<String, String> DIRECTION_MAP = Collections.unmodifiableMap(new HashMap<String, String>() {
+		{
+			put("麻生方面", "1");
+			put("真駒内方面", "2");
+			put("新さっぽろ方面", "3");
+			put("宮の沢方面", "4");
+			put("福住方面", "5");
+			put("栄町方面", "6");
+
+		}
+	});
+
+	public static final Map<String, String> DATE_TYPE_MAP = Collections.unmodifiableMap(new HashMap<String, String>() {
+		{
+			put("平日", "1");
+			put("土曜日・日曜日・祝日", "2");
 		}
 	});
 }
