@@ -9,6 +9,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -34,7 +37,7 @@ public class Application {
 		for (TargetURL target : TargetConst.LIST) {
 			Route route = getRouteIdFromUrlId(target.getUrlId());
 			String station = target.getStationName();
-			System.out.println("駅:" + station);
+			// System.out.println("駅:" + station);
 			String url = TargetConst.BaseURL + target.getUrlId() + ".html";
 			Document document = Jsoup.connect(url).get();
 			// HTMLから方向、平/休日、時刻表の部分を取得
@@ -50,16 +53,16 @@ public class Application {
 
 				if ("h2".equals(tagName)) {
 					direction = text;
-					System.out.println("進行方向:" + direction);
+					// System.out.println("進行方向:" + direction);
 				} else if ("h3".equals(tagName)) {
 					dateType = text;
-					System.out.println("日区分:" + dateType);
+					// System.out.println("日区分:" + dateType);
 				} else if ("th".equals(tagName)) {
 					hour = text;
-					System.out.println("時:" + hour);
+					// System.out.println("時:" + hour);
 				} else if ("p".equals(tagName)) {
 					minutesList = text.split(" ");
-					System.out.println("分:" + text);
+					// System.out.println("分:" + text);
 
 					for (String minutes : minutesList) {
 						Map<String, String> rowMap = new HashMap<String, String>();
@@ -84,6 +87,8 @@ public class Application {
 		}
 		outputCSV(timetable, OUTPUT_TYPE_FULL);
 		outputCSV(timetable, OUTPUT_TYPE_CD);
+		outputJSON(timetable, OUTPUT_TYPE_FULL);
+		outputJSON(timetable, OUTPUT_TYPE_CD);
 	}
 
 	/**
@@ -123,7 +128,7 @@ public class Application {
 	 * @param outputType
 	 */
 	public static void outputCSV(List<Map<String, String>> timetable, int outputType) {
-		System.out.println("ファイル出力開始");
+		System.out.println("csvファイル出力開始");
 		FileWriter fileWriter;
 		try {
 			String fileName = "";
@@ -167,11 +172,51 @@ public class Application {
 			}
 
 			printWriter.close();
-			System.out.println("ファイル出力完了");
+			System.out.println("csvファイル出力完了");
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
+	}
+
+	public static void outputJSON(List<Map<String, String>> timetable, int outputType) {
+		System.out.println("jsonファイル出力開始");
+		JSONArray jsonArray = new JSONArray();
+		for (Map<String, String> map : timetable) {
+			JSONObject jsonObj = new JSONObject();
+			for (Map.Entry<String, String> entry : map.entrySet()) {
+				String key = entry.getKey();
+				Object value = entry.getValue();
+				if (outputType == OUTPUT_TYPE_CD) {
+					if (ColumnConst.ROUTE_NAME.equals(key) || ColumnConst.STATION_NAME.equals(key)
+							|| ColumnConst.DIRECTION_NAME.equals(key) || ColumnConst.DATE_TYPE_NAME.equals(key)) {
+						continue;
+					}
+				}
+				try {
+					jsonObj.put(key, value);
+				} catch (JSONException e) {
+					e.printStackTrace();
+				}
+			}
+			jsonArray.put(jsonObj);
+		}
+
+		FileWriter fileWriter = null;
+		String fileName = "";
+		if (outputType == OUTPUT_TYPE_FULL) {
+			fileName = "timetable-full";
+		} else if (outputType == OUTPUT_TYPE_CD) {
+			fileName = "timetable";
+		}
+		try {
+			fileWriter = new FileWriter("./out/" + fileName + ".json", false);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		jsonArray.write(fileWriter);
+		System.out.println("jsonファイル出力完了");
 	}
 }
