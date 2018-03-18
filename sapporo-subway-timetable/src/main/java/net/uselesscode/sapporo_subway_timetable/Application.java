@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -85,10 +86,45 @@ public class Application {
 			}
 
 		}
-		outputCSV(timetable, OUTPUT_TYPE_FULL);
-		outputCSV(timetable, OUTPUT_TYPE_CD);
-		outputJSON(timetable, OUTPUT_TYPE_FULL);
-		outputJSON(timetable, OUTPUT_TYPE_CD);
+		outputTimeTableCSV(timetable, OUTPUT_TYPE_FULL);
+		outputTimeTableCSV(timetable, OUTPUT_TYPE_CD);
+		outputTimeTableJSON(timetable, OUTPUT_TYPE_FULL);
+		outputTimeTableJSON(timetable, OUTPUT_TYPE_CD);
+
+		LinkedHashMap<String, String> stationMap = createStationMap();
+		outputMapJSON(stationMap, "station");
+		LinkedHashMap<String, String> routeMap = createRouteMap();
+		outputMapJSON(routeMap, "route");
+		outputMapJSON(TargetConst.DATE_TYPE_MAP, "datetype");
+		outputMapJSON(TargetConst.DIRECTION_MAP, "direction");
+	}
+
+	/**
+	 * 駅データのMAPオブジェクト作成
+	 *
+	 * @return
+	 */
+	private static LinkedHashMap<String, String> createStationMap() {
+		LinkedHashMap<String, String> stationMap = new LinkedHashMap<String, String>();
+		TargetConst.LIST.forEach(item -> {
+			Route route = getRouteIdFromUrlId(item.getUrlId());
+			String stationId = createStationId(route.getRouteId(), item.getUrlId());
+			stationMap.put(stationId, item.getStationName());
+		});
+		return stationMap;
+	}
+
+	/**
+	 * 路線データのMAPオブジェクト作成
+	 *
+	 * @return
+	 */
+	private static LinkedHashMap<String, String> createRouteMap() {
+		LinkedHashMap<String, String> routeMap = new LinkedHashMap<String, String>();
+		RouteConst.LIST.forEach(item -> {
+			routeMap.put(item.getRouteId(), item.getRouteName());
+		});
+		return routeMap;
 	}
 
 	/**
@@ -97,7 +133,7 @@ public class Application {
 	 * @param urlId
 	 * @return
 	 */
-	public static Route getRouteIdFromUrlId(String urlId) {
+	private static Route getRouteIdFromUrlId(String urlId) {
 		String urlType = urlId.substring(0, 1);
 		for (Route route : RouteConst.LIST) {
 			if (route.getUrlType().equals(urlType)) {
@@ -114,7 +150,7 @@ public class Application {
 	 * @param urlId
 	 * @return
 	 */
-	public static String createStationId(String routeId, String urlId) {
+	private static String createStationId(String routeId, String urlId) {
 		Integer routeIdInt = Integer.parseInt(routeId) * 100;
 		Integer stationIdInt = Integer.parseInt(urlId.substring(1));
 		String stationId = Integer.toString(routeIdInt + stationIdInt);
@@ -127,7 +163,7 @@ public class Application {
 	 * @param timetable
 	 * @param outputType
 	 */
-	public static void outputCSV(List<Map<String, String>> timetable, int outputType) {
+	private static void outputTimeTableCSV(List<Map<String, String>> timetable, int outputType) {
 		System.out.println("csvファイル出力開始");
 		FileWriter fileWriter;
 		try {
@@ -180,7 +216,13 @@ public class Application {
 
 	}
 
-	public static void outputJSON(List<Map<String, String>> timetable, int outputType) {
+	/**
+	 * JSONファイルを吐き出す
+	 *
+	 * @param timetable
+	 * @param outputType
+	 */
+	private static void outputTimeTableJSON(List<Map<String, String>> timetable, int outputType) {
 		System.out.println("jsonファイル出力開始");
 		JSONArray jsonArray = new JSONArray();
 		for (Map<String, String> map : timetable) {
@@ -212,11 +254,45 @@ public class Application {
 		}
 		try {
 			fileWriter = new FileWriter("./out/" + fileName + ".json", false);
+			jsonArray.write(fileWriter);
+			fileWriter.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		jsonArray.write(fileWriter);
 		System.out.println("jsonファイル出力完了");
 	}
+
+	/**
+	 *
+	 * @param map
+	 * @param fileName
+	 */
+	private static void outputMapJSON(Map<String, String> map, String fileName) {
+		System.out.println("jsonファイル出力開始");
+		JSONArray jsonArray = new JSONArray();
+		JSONObject jsonObj = new JSONObject();
+		for (Map.Entry<String, String> entry : map.entrySet()) {
+			String key = entry.getKey();
+			Object value = entry.getValue();
+			try {
+				jsonObj.put(key, value);
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+		jsonArray.put(jsonObj);
+
+		FileWriter fileWriter = null;
+		try {
+			fileWriter = new FileWriter("./out/" + fileName + ".json", false);
+			jsonArray.write(fileWriter);
+			fileWriter.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		System.out.println("jsonファイル出力完了");
+	}
+
 }
